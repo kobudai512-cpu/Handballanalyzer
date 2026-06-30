@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ハンドボール分析</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a2e;min-height:100vh;font-size:13px}
+/* Layout */
+.app{display:grid;grid-template-columns:1fr 280px;height:100vh;overflow:hidden}
+.main{overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px}
+.sidebar{border-left:1px solid #e2e4e9;background:#fff;display:flex;flex-direction:column;overflow:hidden}
+
+/* Cards */
+.card{background:#fff;border:1px solid #e2e4e9;border-radius:10px;padding:8px 10px}
+.sec{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+
+/* Buttons */
+.btn{border:1px solid #d0d3da;background:#fff;color:#1a1a2e;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;transition:background .12s}
+.btn:hover{background:#f0f2f5}
+.btn-primary{background:#2563eb;color:#fff;border-color:#2563eb}
+.btn-primary:hover{background:#1d4ed8}
+.btn-red{background:#dc2626;color:#fff;border-color:#dc2626}
+.btn-sm{padding:3px 6px;font-size:11px}
+
+/* Header */
+.header{background:#fff;border:1px solid #e2e4e9;border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.timer{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.match-info{flex:1;min-width:100px}
+.match-title{font-size:13px;font-weight:600}
+.half-info{font-size:10px;color:#9ca3af}
+
+/* Score */
+.score-bar{background:#fff;border:1px solid #e2e4e9;border-radius:10px;padding:6px 12px;display:flex;align-items:center;justify-content:space-between}
+.score-num{font-size:30px;font-weight:700}
+.score-vs{font-size:15px;color:#9ca3af}
+.score-team{font-size:11px;color:#6b7280;max-width:80px;text-align:center}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.stat-chip{background:#fff;border:1px solid #e2e4e9;border-radius:8px;padding:5px;text-align:center}
+.stat-chip .v{font-size:15px;font-weight:700;display:block}
+.stat-chip .l{font-size:9px;color:#6b7280;margin-top:1px}
+
+/* Player sections - スリム化 */
+.player-area{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.player-list-title{font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px}
+.player-item{display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border:1px solid #e2e4e9;border-radius:6px;margin-bottom:3px;background:#fff;cursor:pointer;font-size:12px}
+.player-item:hover{border-color:#2563eb;background:#eff6ff}
+.player-item.sel{border-color:#2563eb;background:#eff6ff;font-weight:600;color:#1d4ed8}
+.swap-btn{font-size:9px;padding:2px 4px;border-radius:4px}
+.pos-select{font-size:11px;border:1px solid #d0d3da;border-radius:4px;padding:1px 3px;background:#fff;color:#1a1a2e;cursor:pointer}
+
+/* Goal grid - コンパクト化 */
+.goal-outer{display:flex;flex-direction:column;align-items:center;width:100%}
+.goal-grid{display:grid;grid-template-columns:50px 50px 50px 50px 50px;grid-template-rows:26px 30px 30px 30px 26px;gap:2px;width:fit-content;margin:0 auto}
+.goal-cell{border:1px solid #d0d3da;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;color:#9ca3af;transition:all .12s;background:#fff}
+.goal-cell:hover{background:#eff6ff;border-color:#2563eb}
+.goal-cell.sel{background:#2563eb;color:#fff;border-color:#2563eb}
+.goal-cell.out{background:#fef9ee;border-style:dashed;color:#b45309}
+.goal-cell.out.sel{background:#d97706;color:#fff;border-color:#d97706;border-style:solid}
+
+/* Event buttons */
+.ev-tabs{display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap}
+.ev-tab{padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid #d0d3da;background:#fff;color:#6b7280;font-weight:500}
+.ev-tab.act{font-weight:600}
+.ev-tab.cat-off.act{background:#eff6ff;border-color:#2563eb;color:#1d4ed8}
+.ev-tab.cat-def.act{background:#f5f3ff;border-color:#7c3aed;color:#4c1d95}
+.ev-tab.cat-mis.act{background:#fffbeb;border-color:#d97706;color:#92400e}
+.ev-tab.cat-pen.act{background:#fef2f2;border-color:#dc2626;color:#7f1d1d}
+.ev-tab.cat-los.act{background:#fff7ed;border-color:#ea580c;color:#7c2d12}
+
+.ev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.ev-btn{border:1px solid;border-radius:6px;padding:6px 3px;font-size:11px;cursor:pointer;text-align:center;font-weight:500;transition:filter .1s}
+.ev-btn:hover{filter:brightness(.93)}
+.ev-off{border-color:#2563eb;color:#1d4ed8;background:#eff6ff}
+.ev-def{border-color:#7c3aed;color:#4c1d95;background:#f5f3ff}
+.ev-mis{border-color:#d97706;color:#92400e;background:#fffbeb}
+.ev-pen{border-color:#dc2626;color:#7f1d1d;background:#fef2f2}
+.ev-los{border-color:#ea580c;color:#7c2d12;background:#fff7ed}
+
+/* Log */
+.log-header{padding:8px 10px;border-bottom:1px solid #e2e4e9;display:flex;justify-content:space-between;align-items:center}
+.log-list{flex:1;overflow-y:auto}
+.log-item{padding:6px 10px;border-bottom:1px solid #f3f4f6;display:flex;gap:6px;font-size:11px;align-items:center}
+.log-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.log-body{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-player{font-weight:600}
+.log-sub{font-size:9px;color:#9ca3af;margin-left:4px}
+.log-time{color:#9ca3af;font-size:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.btn-delete{background:none;border:none;color:#dc2626;font-size:13px;cursor:pointer;padding:0 4px;font-weight:bold}
+.btn-delete:hover{color:#b91c1c}
+
+.d-off{background:#2563eb}.d-def{background:#7c3aed}.d-mis{background:#d97706}.d-pen{background:#dc2626}.d-los{background:#ea580c}
+
+/* Setup */
+.setup{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:#f0f2f5}
+.setup-card{background:#fff;border:1px solid #e2e4e9;border-radius:16px;padding:28px;width:100%;max-width:500px}
+.setup-h{font-size:20px;font-weight:700;margin-bottom:4px}
+.setup-sub{font-size:13px;color:#9ca3af;margin-bottom:20px}
+.form-row{margin-bottom:13px}
+.form-label{font-size:12px;color:#6b7280;font-weight:600;margin-bottom:5px;display:block}
+.form-input{width:100%;border:1px solid #d0d3da;border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;color:#1a1a2e;background:#fff}
+.form-input:focus{outline:2px solid #2563eb;border-color:transparent}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ---- DATA ----
+const EVENTS_DEF = [
+  {key:'ロングシュート',    cat:'off',label:'ロングシュート'},
+  {key:'サイドシュート',    cat:'off',label:'サイドシュート'},
+  {key:'ショートシュート',  cat:'off',label:'ショートシュート'},
+  {key:'ファストブレイク',  cat:'off',label:'ファストブレイク'},
+  {key:'7mスロー',          cat:'off',label:'7mスロー'},
+  {key:'アシスト',          cat:'off',label:'アシスト'},
+  {key:'7m獲得',            cat:'off',label:'7m獲得'},
+  {key:'シュートブロック',  cat:'def',label:'シュートブロック'},
+  {key:'スチール',          cat:'def',label:'スチール'},
+  {key:'ショートシュートセーブ', cat:'def',label:'ショートSV'},
+  {key:'ロングシュートセーブ',   cat:'def',label:'ロングSV'},
+  {key:'サイドシュートセーブ',   cat:'def',label:'サイドSV'},
+  {key:'速攻セーブ',        cat:'def',label:'速攻SV'},
+  {key:'7mセーブ',          cat:'def',label:'7mSV'},
+  {key:'サイドシュート枠外',cat:'mis',label:'サイド枠外'},
+  {key:'ロングシュート枠外',cat:'mis',label:'ロング枠外'},
+  {key:'ショートシュート枠外',cat:'mis',label:'ショート枠外'},
+  {key:'速攻枠外',          cat:'mis',label:'速攻枠外'},
+  {key:'ブロックトロングシュート',cat:'mis',label:'ブロックトロング'},
+  {key:'7m失敗',            cat:'mis',label:'7m失敗'},
+  {key:'セーブドサイドシュート',cat:'mis',label:'SVDサイド'},
+  {key:'セーブドロングシュート',cat:'mis',label:'SVDロング'},
+  {key:'セーブドショートシュート',cat:'mis',label:'SVDショート'},
+  {key:'セーブド速攻',      cat:'mis',label:'SVD速攻'},
+  {key:'ターンオーバー',    cat:'pen',label:'ターンオーバー'},
+  {key:'警告',              cat:'pen',label:'警告'},
+  {key:'2分間',             cat:'pen',label:'2分間'},
+  {key:'7mスロー献上',      cat:'pen',label:'7m献上'},
+  {key:'被ショートシュート',cat:'los',label:'被ショート'},
+  {key:'被サイドシュート',  cat:'los',label:'被サイド'},
+  {key:'被ロングシュート',  cat:'los',label:'被ロング'},
+  {key:'被速攻',            cat:'los',label:'被速攻'},
+  {key:'被7mスロー',        cat:'los',label:'被7m'},
+];
+
+const SCORE_KEYS = new Set(['ロングシュート','サイドシュート','ショートシュート','ファストブレイク','7mスロー']);
+const CONCEDE_KEYS = new Set(['被ショートシュート','被サイドシュート','被ロングシュート','get被速攻','被速攻','被7mスロー']);
+
+const CATS = [
+  {id:'off',label:'オフェンス',cls:'cat-off',evCls:'ev-off'},
+  {id:'def',label:'ディフェンス',cls:'cat-def',evCls:'ev-def'},
+  {id:'mis',label:'ミス',cls:'cat-mis',evCls:'ev-mis'},
+  {id:'pen',label:'ペナルティ',cls:'cat-pen',evCls:'ev-pen'},
+  {id:'los',label:'失点原因',cls:'cat-los',evCls:'ev-los'},
+];
+
+const DOT_CLS = {off:'d-off',def:'d-def',mis:'d-mis',pen:'d-pen',los:'d-los'};
+
+// ★ 新しいMEP計算ルールを正確に反映
+const MEP_PTS = {
+  'ロングシュート': 1, 'サイドシュート': 1.2, 'ショートシュート': 1, 'ファストブレイク': 0.8, '7mスロー': 0.6,
+  'アシスト': 0.8, '7m獲得': 0.6, 'シュートブロック': 1, 'スチール': 1.2,
+  'ショートシュートセーブ': 1, 'ロングシュートセーブ': 1, 'サイドシュートセーブ': 1.2, '速攻セーブ': 1.2, '7mセーブ': 1.5,
+  'サイドシュート枠外': -1, 'ロングシュート枠外': -1, 'ショートシュート枠外': -1, '速攻枠外': -1, 'ブロックトロングシュート': -1, '7m失敗': -0.9,
+  'セーブドサイドシュート': -0.8, 'セーブドロングシュート': -0.8, 'セーブドショートシュート': -0.8, 'セーブド速攻': -0.8,
+  'ターンオーバー': -1.2, '警告': -0.3, '2分間': -1, '7mスロー献上': -0.6,
+  '被ショートシュート': -0.4, '被サイドシュート': -0.6, '被ロングシュート': -1, '被速攻': -0.4, '被7mスロー': -0.2
+};
+
+// Goal grid layout
+const GOAL_CELLS = [];
+for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+  const isOut = r===0||r===4||c===0||c===4;
+  const isCornerOut = (r===0||r===4)&&(c===0||c===4);
+  if(isCornerOut){ GOAL_CELLS.push(null); continue; }
+  let label='';
+  if(r===0) label=c===1?'左上枠外':c===2?'上枠外':'右上枠外';
+  else if(r===4) label=c===1?'左下枠外':c===2?'下枠外':'右下枠外';
+  else if(c===0) label=r===1?'左上枠外':r===2?'左枠外':'left下枠外';
+  else if(c===4) label=r===1?'右上枠外':r===2?'右枠外':'右下枠外';
+  else {
+    const rl=['上','中','下'][r-1], cl=['左','中','右'][c-1];
+    label=cl+rl;
+  }
+  GOAL_CELLS.push({r,c,label,isOut});
+}
+
+const POS_OPTS = ['GK','LW','LB','CB','RB','RW','PV'];
+
+// ---- STATE ----
+let S = {
+  phase:'setup', home:'',away:'',
+  bench:[], field:[], 
+  half:1, running:false, elapsed:0,
+  selPlayer:null, selCat:'off',
+  selGoalIdx:null,
+  events:[],
+  score:{home:0,away:0}
+};
+let tid=null;
+
+// ---- HELPERS ----
+const fmt=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+
+const mepMap=()=>{
+  const p={};
+  S.events.forEach(e=>{
+    const pts = parseFloat(MEP_PTS[e.key] || 0);
+    p[e.player] = ((p[e.player] || 0) + pts);
+  });
+  // 小数第1位までに丸める
+  Object.keys(p).forEach(k => p[k] = Math.round(p[k] * 10) / 10);
+  return p;
+};
+
+const topMep=()=>{
+  const m=mepMap();
+  const e=Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  return e[0]||null;
+};
+
+const allPlayers=()=>[...S.field,...S.bench];
+
+function toggleTimer(){if(S.running){S.running=false;clearInterval(tid)}else{S.running=true;tid=setInterval(()=>{S.elapsed++;render()},1000)};render()}
+function nextHalf(){S.running=false;clearInterval(tid);S.half=2;S.elapsed=0;render()}
+
+function logEvent(key){
+  if(!S.selPlayer){alert('選手を選んでください');return}
+  const ev=EVENTS_DEF.find(e=>e.key===key);
+  S.events.unshift({id:Date.now(),key,label:ev.key,cat:ev.cat,player:S.selPlayer,
+    half:S.half,time:S.elapsed,goalIdx:S.selGoalIdx});
+  if(SCORE_KEYS.has(key))S.score.home++;
+  if(CONCEDE_KEYS.has(key))S.score.away++;
+  S.selGoalIdx=null;
+  render();
+}
+
+// ★ 記録を完全に消去する機能を追加
+function deleteEvent(id){
+  const idx = S.events.findIndex(e => e.id === id);
+  if(idx === -1) return;
+  const target = S.events[idx];
+  
+  // スコアの取り消し連動
+  if(SCORE_KEYS.has(target.key)) S.score.home = Math.max(0, S.score.home - 1);
+  if(CONCEDE_KEYS.has(target.key)) S.score.away = Math.max(0, S.score.away - 1);
+  
+  // 配列から削除
+  S.events.splice(idx, 1);
+  render();
+}
+
+function swapPlayer(name){
+  const fi=S.field.findIndex(p=>p.name===name);
+  const bi=S.bench.findIndex(p=>p.name===name);
+  if(fi>=0){S.bench.push(S.field.splice(fi,1)[0])}
+  else if(bi>=0){S.field.push(S.bench.splice(bi,1)[0])}
+  render();
+}
+
+function changePos(name,pos){
+  const p=allPlayers().find(x=>x.name===name);
+  if(p)p.pos=pos;
+  render();
+}
+
+function exportCSV(){
+  const gc=idx=>{if(idx==null)return'';const g=GOAL_CELLS[idx];return g?g.label:''};
+  const rows=S.events.map(e=>`${fmt(e.time)},${e.half},${e.player},${e.label},${e.cat},${gc(e.goalIdx)}`);
+  const b=new Blob(['time,half,player,event,cat,goal_course\n'+rows.join('\n')],{type:'text/csv'});
+  const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='handball.csv';a.click();
+}
+
+// ---- SETUP ----
+function startMatch(){
+  const h=document.getElementById('ih').value.trim();
+  const a=document.getElementById('ia').value.trim();
+  if(!h||!a){alert('チーム名を入力してください');return}
+  const ps=document.getElementById('ip').value.trim().split(/[\n,、]/g).map(s=>s.trim()).filter(Boolean);
+  if(!ps.length){alert('選手名を入力してください');return}
+  S.home=h;S.away=a;
+  S.field=ps.slice(0,7).map((n,i)=>({name:n,pos:['GK','LW','LB','CB','RB','RW','PV'][i]||'CB'}));
+  S.bench=ps.slice(7).map(n=>({name:n,pos:'CB'}));
+  S.phase='match';render();
+}
+
+// ---- RENDER ----
+function render(){
+  const root=document.getElementById('root');
+  if(S.phase==='setup'){renderSetup(root);return}
+
+  const mainEl = document.querySelector('.main');
+  const logListEl = document.querySelector('.log-list');
+  const mainScroll = mainEl ? mainEl.scrollTop : 0;
+  const logScroll = logListEl ? logListEl.scrollTop : 0;
+
+  renderMatch(root);
+  bindMatch();
+
+  const newMainEl = document.querySelector('.main');
+  const newLogListEl = document.querySelector('.log-list');
+  if(newMainEl) newMainEl.scrollTop = mainScroll;
+  if(newLogListEl) newLogListEl.scrollTop = logScroll;
+}
+
+function renderSetup(root){
+  root.innerHTML=`<div class="setup"><div class="setup-card">
+    <div class="setup-h">ハンドボール分析</div>
+    <div class="setup-sub">試合を設定して記録を始めましょう</div>
+    <div class="form-row"><label class="form-label">自チーム名</label><input id="ih" class="form-input" placeholder="例：東海大学"></div>
+    <div class="form-row"><label class="form-label">相手チーム名</label><input id="ia" class="form-input" placeholder="例：日体大"></div>
+    <div class="form-row"><label class="form-label">選手名（改行またはカンマ区切り）<br><span style="font-weight:400;color:#9ca3af">最初の7人がスターティングメンバーになります</span></label>
+      <textarea id="ip" class="form-input" rows="8" placeholder="長谷川&#10;竹内&#10;若松&#10;錦織&#10;じゅんじろう&#10;（7人目まで先発）"></textarea></div>
+    <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px" onclick="startMatch()">試合を開始する</button>
+  </div></div>`;
+}
+
+function renderMatch(root){
+  const mm=mepMap();
+  const goals=S.events.filter(e=>SCORE_KEYS.has(e.key));
+  const shots=S.events.filter(e=>SCORE_KEYS.has(e.key)||['サイドシュート枠外','ロングシュート枠外','ショートシュート枠外','速攻枠外','ブロックトロングシュート','7m失敗','セーブドサイドシュート','セーブドロングシュート','セーブドショートシュート','セーブド速攻'].includes(e.key));
+  const rate=shots.length?Math.round(goals.length/shots.length*100):0;
+  const top=topMep();
+
+  // Goal grid HTML
+  let ggHTML='<div class="goal-grid">';
+  GOAL_CELLS.forEach((g,i)=>{
+    if(!g){ggHTML+='<div></div>';return}
+    const selCls=S.selGoalIdx===i?(g.isOut?' sel':'sel'):'';
+    const outCls=g.isOut?'out':'';
+    ggHTML+=`<div class="goal-cell ${outCls} ${selCls}" data-gi="${i}">${g.label}</div>`;
+  });
+  ggHTML+='</div>';
+
+  // Players
+  const mkPlayer=(p,isField)=>{
+    const pts=mm[p.name]||0;
+    const selCls=S.selPlayer===p.name?'sel':'';
+    return `<div class="player-item ${selCls}" data-pname="${p.name}">
+      <span>${p.name} <span style="font-size:10px;color:#2563eb;font-weight:bold">${pts>0?'+':''}${pts}pt</span></span>
+      <div style="display:flex;gap:3px;align-items:center">
+        <select class="pos-select" data-psel="${p.name}" onclick="event.stopPropagation()">
+          ${POS_OPTS.map(o=>`<option${p.pos===o?' selected':''}>${o}</option>`).join('')}
+        </select>
+        <button class="btn btn-sm swap-btn" data-swap="${p.name}" onclick="event.stopPropagation()">${isField?'⇄':'出場'}</button>
+      </div>
+    </div>`;
+  };
+
+  root.innerHTML=`
+  <div class="app">
+  <div class="main">
+
+    <div class="header">
+      <div class="match-info">
+        <div class="match-title">${S.home} vs ${S.away}</div>
+        <div class="half-info">第${S.half}ハーフ</div>
+      </div>
+      <div class="timer">${fmt(S.elapsed)}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn ${S.running?'btn-red':'btn-primary'}" id="bt">${S.running?'⏸ 停止':'▶ 開始'}</button>
+        ${S.half===1?`<button class="btn btn-sm" id="bh">後半へ</button>`:''}
+        <button class="btn btn-sm" id="bcsv">📥 CSV</button>
+      </div>
+    </div>
+
+    <div class="score-bar">
+      <div class="score-team">${S.home}</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="score-num">${S.score.home}</div>
+        <div class="score-vs">—</div>
+        <div class="score-num">${S.score.away}</div>
+      </div>
+      <div class="score-team">${S.away}</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-chip"><span class="v">${S.events.length}</span><span class="l">イベント</span></div>
+      <div class="stat-chip"><span class="v">${goals.length}</span><span class="l">得点</span></div>
+      <div class="stat-chip"><span class="v">${rate}%</span><span class="l">シュート率</span></div>
+      <div class="stat-chip"><span class="v" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${top?`${top[0]}(${top[1]})`:'—'}</span><span class="l">暫定MEP</span></div>
+    </div>
+
+    <div class="card">
+      <div class="sec">1. 選手を選ぶ</div>
+      <div class="player-area">
+        <div>
+          <div class="player-list-title">⚽ 出場中 (${S.field.length})</div>
+          ${S.field.map(p=>mkPlayer(p,true)).join('')}
+        </div>
+        <div>
+          <div class="player-list-title">🪑 ベンチ (${S.bench.length})</div>
+          ${S.bench.length?S.bench.map(p=>mkPlayer(p,false)).join(''):'<div style="font-size:11px;color:#9ca3af;padding:4px">なし</div>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">2. ゴールコース（任意）</div>
+      <div class="goal-outer">
+        ${ggHTML}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">3. プレーを記録する</div>
+      <div class="ev-tabs">
+        ${CATS.map(cat=>`<div class="ev-tab ${cat.cls}${S.selCat===cat.id?' act':''}" data-cat="${cat.id}">${cat.label}</div>`).join('')}
+      </div>
+      <div class="ev-grid">
+        ${EVENTS_DEF.filter(e=>e.cat===S.selCat).map(e=>`<button class="ev-btn ev-${e.cat}" data-ek="${e.key}">${e.label}</button>`).join('')}
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sidebar">
+    <div class="log-header">
+      <span style="font-size:12px;font-weight:600">プレーログ</span>
+      <span style="font-size:10px;color:#9ca3af">${S.events.length}件</span>
+    </div>
+    <div class="log-list">
+      ${!S.events.length?`<div style="padding:20px;text-align:center;font-size:11px;color:#9ca3af">記録がありません</div>`:''}
+      ${S.events.map(e=>{
+        const gc=e.goalIdx!=null&&GOAL_CELLS[e.goalIdx]?GOAL_CELLS[e.goalIdx].label:'';
+        return`<div class="log-item">
+          <div class="log-dot ${DOT_CLS[e.cat]}"></div>
+          <div class="log-body">
+            <span class="log-player">${e.player}</span>
+            <span style="color:#374151">${e.label}</span>
+            ${gc?`<span class="log-sub">(${gc})</span>`:''}
+          </div>
+          <div class="log-time">${fmt(e.time)}</div>
+          <button class="btn-delete" data-delid="${e.id}" title="消去">×</button>
+        </div>`}).join('')}
+    </div>
+  </div>
+  </div>`;
+}
+
+function bindMatch(){
+  document.getElementById('bt')?.addEventListener('click',toggleTimer);
+  document.getElementById('bh')?.addEventListener('click',nextHalf);
+  document.getElementById('bcsv')?.addEventListener('click',exportCSV);
+  document.querySelectorAll('.player-item').forEach(el=>{
+    el.addEventListener('click',()=>{S.selPlayer=el.dataset.pname;render()});
+  });
+  document.querySelectorAll('[data-swap]').forEach(b=>{
+    b.addEventListener('click',e=>{e.stopPropagation();swapPlayer(b.dataset.swap)});
+  });
+  document.querySelectorAll('[data-psel]').forEach(sel=>{
+    sel.addEventListener('change',e=>{changePos(sel.dataset.psel,sel.value)});
+  });
+  document.querySelectorAll('.ev-tab').forEach(t=>{
+    t.addEventListener('click',()=>{S.selCat=t.dataset.cat;render()});
+  });
+  document.querySelectorAll('.ev-btn').forEach(b=>{
+    b.addEventListener('click',()=>logEvent(b.dataset.ek));
+  });
+  document.querySelectorAll('.goal-cell').forEach(c=>{
+    c.addEventListener('click',()=>{
+      const i=+c.dataset.gi;
+      S.selGoalIdx=S.selGoalIdx===i?null:i;
+      render();
+    });
+  });
+  // ★ 消去ボタンのクリックイベントをバインド
+  document.querySelectorAll('[data-delid]').forEach(b=>{
+    b.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      if(confirm('この記録を消去してよろしいですか？（得点やMEPも自動で戻ります）')){
+        deleteEvent(+b.dataset.delid);
+      }
+    });
+  });
+}
+
+render();
+</script>
+</body>
+</html>
